@@ -1,0 +1,297 @@
+# Local development stack. Start with: docker compose up --build --wait
+# Secrets come from .env. Copy .env.example first. All ports bind to localhost only.
+name: agentarena
+
+x-service-env: &service-env
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  JWKS_URL: http://identity-service:8000/.well-known/jwks.json
+  INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+
+x-rabbitmq-url: &rabbitmq-url amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/agentarena
+x-runs-db-url: &runs-db-url postgresql+asyncpg://runs_svc:${RUNS_DB_PASSWORD}@postgres:5432/runs_db
+x-evaluations-db-url: &evaluations-db-url postgresql+asyncpg://evaluations_svc:${EVALUATIONS_DB_PASSWORD}@postgres:5432/evaluations_db
+
+x-agent-policy: &agent-policy
+  # Compose only: lets the sample agent on the private network be called over http.
+  AGENT_ENDPOINT_ALLOWLIST: sample-agent
+  ALLOW_HTTP_ENDPOINTS: "true"
+
+x-health: &health
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 10s
+
+x-security: &security
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:17.11-alpine3.24
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      AGENTS_DB_PASSWORD: ${AGENTS_DB_PASSWORD}
+      SCENARIOS_DB_PASSWORD: ${SCENARIOS_DB_PASSWORD}
+      RUNS_DB_PASSWORD: ${RUNS_DB_PASSWORD}
+      EVALUATIONS_DB_PASSWORD: ${EVALUATIONS_DB_PASSWORD}
+    command: ["postgres", "-c", "max_connections=300"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      # Waits for the last database, which only exists after the init script finishes.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d evaluations_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.3.7-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: agentarena
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+      - ./infrastructure/rabbitmq/rabbitmq.conf:/etc/rabbitmq/conf.d/90-agentarena.conf:ro
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 15s
+    restart: unless-stopped
+
+  identity-service:
+    <<: *security
+    build:
+      context: .
+      dockerfile: services/identity-service/Dockerfile
+    image: agentarena/identity-service:local
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql+asyncpg://identity_svc:${IDENTITY_DB_PASSWORD}@postgres:5432/identity_db
+      IDENTITY_KEY_ENCRYPTION_KEY: ${IDENTITY_KEY_ENCRYPTION_KEY}
+      # Raised for local use, where every signup shares one address.
+      REGISTER_RATE_PER_SECOND: "50"
+      REGISTER_RATE_BURST: "200"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+    healthcheck: *health
+
+  agent-registry:
+    <<: *security
+    build:
+      context: .
+      dockerfile: services/agent-registry/Dockerfile
+    image: agentarena/agent-registry:local
+    environment:
+      <<: [*service-env, *agent-policy]
+      DATABASE_URL: postgresql+asyncpg://agents_svc:${AGENTS_DB_PASSWORD}@postgres:5432/agents_db
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8002:8000"
+    healthcheck: *health
+
+  scenario-service:
+    <<: *security
+    build:
+      context: .
+      dockerfile: services/scenario-service/Dockerfile
+    image: agentarena/scenario-service:local
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql+asyncpg://scenarios_svc:${SCENARIOS_DB_PASSWORD}@postgres:5432/scenarios_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8003:8000"
+    healthcheck: *health
+
+  run-orchestrator:
+    <<: *security
+    build:
+      context: .
+      dockerfile: services/run-orchestrator/Dockerfile
+    image: agentarena/run-orchestrator:local
+    environment:
+      <<: *service-env
+      DATABASE_URL: *runs-db-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent-registry:
+        condition: service_healthy
+      scenario-service:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8004:8000"
+    healthcheck: *health
+
+  run-orchestrator-scheduler:
+    <<: *security
+    image: agentarena/run-orchestrator:local
+    command: ["python", "-m", "run_orchestrator.scheduler"]
+    environment:
+      <<: *service-env
+      SERVICE_NAME: run-orchestrator-scheduler
+      DATABASE_URL: *runs-db-url
+      RABBITMQ_URL: *rabbitmq-url
+    depends_on:
+      run-orchestrator:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *health
+
+  run-orchestrator-worker:
+    <<: *security
+    image: agentarena/run-orchestrator:local
+    command: ["python", "-m", "run_orchestrator.worker"]
+    environment:
+      <<: [*service-env, *agent-policy]
+      SERVICE_NAME: run-orchestrator-worker
+      DATABASE_URL: *runs-db-url
+      RABBITMQ_URL: *rabbitmq-url
+      WORKER_CONCURRENCY: "8"
+    depends_on:
+      run-orchestrator:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    stop_grace_period: 30s
+    healthcheck: *health
+
+  evaluation-service:
+    <<: *security
+    build:
+      context: .
+      dockerfile: services/evaluation-service/Dockerfile
+    image: agentarena/evaluation-service:local
+    environment:
+      <<: *service-env
+      DATABASE_URL: *evaluations-db-url
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8005:8000"
+    healthcheck: *health
+
+  evaluation-service-consumer:
+    <<: *security
+    image: agentarena/evaluation-service:local
+    command: ["python", "-m", "evaluation_service.consumer"]
+    environment:
+      <<: *service-env
+      SERVICE_NAME: evaluation-service-consumer
+      DATABASE_URL: *evaluations-db-url
+      RABBITMQ_URL: *rabbitmq-url
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      evaluation-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *health
+
+  sample-agent:
+    <<: *security
+    build:
+      context: .
+      dockerfile: examples/sample-agent/Dockerfile
+    image: agentarena/sample-agent:local
+    environment:
+      SAMPLE_AGENT_API_KEY: ${SAMPLE_AGENT_API_KEY}
+    ports:
+      - "127.0.0.1:8006:8000"
+    healthcheck: *health
+
+  # The web app, and the single entry point for the browser: http://localhost:8080
+  frontend:
+    build:
+      context: frontend
+    image: agentarena/frontend:local
+    volumes:
+      - ./infrastructure/gateway/api-routes.conf:/etc/nginx/extra/api-routes.conf:ro
+    depends_on:
+      identity-service:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.164.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - jaeger
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/jaeger:2.23.0
+    ports:
+      - "127.0.0.1:16686:16686"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.4.14
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  prometheus-data:

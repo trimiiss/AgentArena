@@ -1,0 +1,52 @@
+{
+  "properties": {
+    "attempt": {
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "error_code": {
+      "title": "Error Code",
+      "type": "string"
+    },
+    "error_message": {
+      "title": "Error Message",
+      "type": "string"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "timed_out",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "will_retry": {
+      "default": false,
+      "title": "Will Retry",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "run_id",
+    "execution_id",
+    "attempt",
+    "status",
+    "error_code",
+    "error_message"
+  ],
+  "title": "ExecutionFailed",
+  "type": "object"
+}

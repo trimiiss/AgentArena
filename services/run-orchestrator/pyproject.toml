@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "run-orchestrator"
+version = "1.0.0"
+description = "Accepts simulation runs, schedules executions and drives agents through scenarios."
+requires-python = ">=3.13"
+dependencies = ["agentarena-common", "opentelemetry-api"]
+
+[tool.setuptools.packages.find]
+include = ["run_orchestrator*"]

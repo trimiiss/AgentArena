@@ -1,0 +1,1863 @@
+openapi: 3.1.0
+info:
+  title: AgentArena Scenario Service
+  description: Versioned test scenarios, test suites, datasets and scenario variations.
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      tags:
+      - operations
+      summary: Liveness check
+      description: 'Liveness: the process is running. Dependencies are not checked here,
+
+        otherwise a database outage would restart every pod.'
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /ready:
+    get:
+      tags:
+      - operations
+      summary: Readiness check
+      description: 'Readiness: this replica can do useful work right now.'
+      operationId: ready_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready Ready Get
+  /v1/scenarios:
+    post:
+      tags:
+      - scenarios
+      summary: Create Scenario
+      operationId: create_scenario_v1_scenarios_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - scenarios
+      summary: List Scenarios
+      operationId: list_scenarios_v1_scenarios_get
+      parameters:
+      - name: scenario_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Scenario Type
+      - name: difficulty
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Difficulty
+      - name: tag
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/resolve:
+    get:
+      tags:
+      - scenarios
+      summary: Resolve Scenarios
+      description: Pins each scenario to its latest version for a run. A read, so it is safe to retry.
+      operationId: resolve_scenarios_v1_scenarios_resolve_get
+      parameters:
+      - name: ids
+        in: query
+        required: true
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+          title: Ids
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/starter-pack:
+    post:
+      tags:
+      - scenarios
+      summary: Install Starter Pack
+      description: Creates a complete benchmark for this organization. Safe to call twice.
+      operationId: install_starter_pack_v1_scenarios_starter_pack_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StarterPackResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/{scenario_id}:
+    get:
+      tags:
+      - scenarios
+      summary: Get Scenario
+      operationId: get_scenario_v1_scenarios__scenario_id__get
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - scenarios
+      summary: Update Scenario
+      operationId: update_scenario_v1_scenarios__scenario_id__patch
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScenarioUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScenarioOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - scenarios
+      summary: Delete Scenario
+      description: Soft delete, because past runs must keep their exact scenario version.
+      operationId: delete_scenario_v1_scenarios__scenario_id__delete
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/{scenario_id}/versions:
+    get:
+      tags:
+      - scenarios
+      summary: List Versions
+      operationId: list_versions_v1_scenarios__scenario_id__versions_get
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VersionOut'
+                title: Response List Versions V1 Scenarios  Scenario Id  Versions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - scenarios
+      summary: Create Version
+      operationId: create_version_v1_scenarios__scenario_id__versions_post
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/{scenario_id}/versions/{version}:
+    get:
+      tags:
+      - scenarios
+      summary: Get Version
+      operationId: get_version_v1_scenarios__scenario_id__versions__version__get
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/scenarios/{scenario_id}/variations:
+    post:
+      tags:
+      - scenarios
+      summary: Generate Variations
+      operationId: generate_variations_v1_scenarios__scenario_id__variations_post
+      parameters:
+      - name: scenario_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Scenario Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariationRequest'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariationResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/suites:
+    post:
+      tags:
+      - suites
+      summary: Create Suite
+      operationId: create_suite_v1_suites_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuiteCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuiteOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - suites
+      summary: List Suites
+      operationId: list_suites_v1_suites_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuiteList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/suites/{suite_id}:
+    get:
+      tags:
+      - suites
+      summary: Get Suite
+      operationId: get_suite_v1_suites__suite_id__get
+      parameters:
+      - name: suite_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Suite Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuiteOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - suites
+      summary: Update Suite
+      operationId: update_suite_v1_suites__suite_id__patch
+      parameters:
+      - name: suite_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Suite Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuiteUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuiteOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - suites
+      summary: Delete Suite
+      operationId: delete_suite_v1_suites__suite_id__delete
+      parameters:
+      - name: suite_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Suite Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/suites/{suite_id}/resolve:
+    get:
+      tags:
+      - suites
+      summary: Resolve Suite
+      description: Returns each scenario at the exact version a run should execute.
+      operationId: resolve_suite_v1_suites__suite_id__resolve_get
+      parameters:
+      - name: suite_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Suite Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/datasets:
+    post:
+      tags:
+      - datasets
+      summary: Create Dataset
+      operationId: create_dataset_v1_datasets_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - datasets
+      summary: List Datasets
+      operationId: list_datasets_v1_datasets_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/datasets/{dataset_id}:
+    get:
+      tags:
+      - datasets
+      summary: Get Dataset
+      operationId: get_dataset_v1_datasets__dataset_id__get
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - datasets
+      summary: Update Dataset
+      operationId: update_dataset_v1_datasets__dataset_id__patch
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - datasets
+      summary: Delete Dataset
+      operationId: delete_dataset_v1_datasets__dataset_id__delete
+      parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Dataset Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    BusinessRule:
+      properties:
+        path:
+          type: string
+          maxLength: 256
+          minLength: 1
+          title: Path
+        op:
+          type: string
+          enum:
+          - eq
+          - ne
+          - lt
+          - lte
+          - gt
+          - gte
+          - in
+          - contains
+          - exists
+          title: Op
+        value:
+          title: Value
+        description:
+          type: string
+          title: Description
+          default: ''
+      type: object
+      required:
+      - path
+      - op
+      title: BusinessRule
+      description: '``path`` reads ``output.<field>`` from structured output or ``tool.<name>.<arg>`` from tool calls.'
+    DatasetCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          minLength: 2
+          title: Name
+        description:
+          type: string
+          maxLength: 4000
+          title: Description
+          default: ''
+        rows:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Rows
+      type: object
+      required:
+      - name
+      title: DatasetCreate
+    DatasetList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/DatasetOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: DatasetList
+    DatasetOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        org_id:
+          type: string
+          format: uuid
+          title: Org Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        rows:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Rows
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - org_id
+      - name
+      - description
+      - rows
+      - created_at
+      - updated_at
+      title: DatasetOut
+    DatasetUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 2
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Description
+        rows:
+          anyOf:
+          - items:
+              additionalProperties: true
+              type: object
+            type: array
+          - type: 'null'
+          title: Rows
+      type: object
+      title: DatasetUpdate
+    EvaluationCriteria:
+      properties:
+        pass_threshold:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Pass Threshold
+          default: 0.7
+        weights:
+          additionalProperties:
+            type: number
+          propertyNames:
+            enum:
+            - task_completion
+            - correctness
+            - tool_use
+            - policy
+            - response_quality
+            - error_handling
+            - latency
+            - cost
+          type: object
+          title: Weights
+        critical_dimensions:
+          items:
+            type: string
+            enum:
+            - task_completion
+            - correctness
+            - tool_use
+            - policy
+            - response_quality
+            - error_handling
+            - latency
+            - cost
+          type: array
+          title: Critical Dimensions
+        latency_budget_ms:
+          type: integer
+          minimum: 1.0
+          title: Latency Budget Ms
+          default: 5000
+        token_budget:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Token Budget
+        cost_budget_usd:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Cost Budget Usd
+        similarity_threshold:
+          type: number
+          maximum: 1.0
+          minimum: 0.0
+          title: Similarity Threshold
+          default: 0.35
+      type: object
+      title: EvaluationCriteria
+    ExpectedOutcome:
+      properties:
+        task_status:
+          anyOf:
+          - type: string
+            enum:
+            - in_progress
+            - completed
+            - failed
+            - needs_input
+          - type: 'null'
+          title: Task Status
+          default: completed
+        exact_response:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exact Response
+        reference_answer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reference Answer
+        required_phrases:
+          items:
+            type: string
+          type: array
+          title: Required Phrases
+        forbidden_phrases:
+          items:
+            type: string
+          type: array
+          title: Forbidden Phrases
+        response_schema:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Response Schema
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ExpectedToolCall'
+          type: array
+          title: Tool Calls
+        forbidden_tools:
+          items:
+            type: string
+          type: array
+          title: Forbidden Tools
+        tool_order:
+          items:
+            type: string
+          type: array
+          title: Tool Order
+        business_rules:
+          items:
+            $ref: '#/components/schemas/BusinessRule'
+          type: array
+          title: Business Rules
+        must_handle_failure:
+          type: boolean
+          title: Must Handle Failure
+          default: false
+        failure_ack_phrases:
+          items:
+            type: string
+          type: array
+          title: Failure Ack Phrases
+      type: object
+      title: ExpectedOutcome
+    ExpectedToolCall:
+      properties:
+        name:
+          type: string
+          title: Name
+        arguments:
+          additionalProperties: true
+          type: object
+          title: Arguments
+          description: Subset that must appear in the call.
+        required:
+          type: boolean
+          title: Required
+          default: true
+        max_calls:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Max Calls
+      type: object
+      required:
+      - name
+      title: ExpectedToolCall
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ResolveResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ResolvedScenario'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: ResolveResponse
+    ResolvedScenario:
+      properties:
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        version:
+          type: integer
+          title: Version
+        name:
+          type: string
+          title: Name
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+      type: object
+      required:
+      - scenario_id
+      - version
+      - name
+      - scenario_type
+      - difficulty
+      title: ResolvedScenario
+    ScenarioCreate:
+      properties:
+        definition:
+          $ref: '#/components/schemas/ScenarioDefinition'
+        expected:
+          $ref: '#/components/schemas/ExpectedOutcome'
+        criteria:
+          $ref: '#/components/schemas/EvaluationCriteria'
+        name:
+          type: string
+          maxLength: 200
+          minLength: 2
+          title: Name
+        description:
+          type: string
+          maxLength: 4000
+          title: Description
+          default: ''
+        scenario_type:
+          type: string
+          enum:
+          - customer_support
+          - multi_turn
+          - tool_use
+          - error_handling
+          - conflicting_information
+          - missing_information
+          - policy_compliance
+          - concurrent_tasks
+          title: Scenario Type
+        difficulty:
+          type: string
+          enum:
+          - easy
+          - medium
+          - hard
+          title: Difficulty
+          default: medium
+        tags:
+          items:
+            type: string
+          type: array
+          maxItems: 20
+          title: Tags
+      type: object
+      required:
+      - definition
+      - name
+      - scenario_type
+      title: ScenarioCreate
+    ScenarioDefinition:
+      properties:
+        system_prompt:
+          type: string
+          maxLength: 20000
+          title: System Prompt
+          default: ''
+        turns:
+          items:
+            $ref: '#/components/schemas/Turn'
+          type: array
+          maxItems: 50
+          minItems: 1
+          title: Turns
+        tools:
+          items:
+            $ref: '#/components/schemas/ToolDefinition'
+          type: array
+          maxItems: 50
+          title: Tools
+        context:
+          additionalProperties: true
+          type: object
+          title: Context
+        max_agent_calls:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Max Agent Calls
+          default: 10
+      type: object
+      required:
+      - turns
+      title: ScenarioDefinition
+    ScenarioList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ScenarioSummary'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: ScenarioList
+    ScenarioOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        org_id:
+          type: string
+          format: uuid
+          title: Org Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        latest_version:
+          type: integer
+          title: Latest Version
+        parent_scenario_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Parent Scenario Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        current:
+          $ref: '#/components/schemas/VersionOut'
+      type: object
+      required:
+      - id
+      - org_id
+      - name
+      - description
+      - scenario_type
+      - difficulty
+      - tags
+      - latest_version
+      - parent_scenario_id
+      - created_at
+      - updated_at
+      - current
+      title: ScenarioOut
+    ScenarioSummary:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        org_id:
+          type: string
+          format: uuid
+          title: Org Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+        tags:
+          items:
+            type: string
+          type: array
+          title: Tags
+        latest_version:
+          type: integer
+          title: Latest Version
+        parent_scenario_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Parent Scenario Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - org_id
+      - name
+      - description
+      - scenario_type
+      - difficulty
+      - tags
+      - latest_version
+      - parent_scenario_id
+      - created_at
+      - updated_at
+      title: ScenarioSummary
+    ScenarioUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 2
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Description
+        scenario_type:
+          anyOf:
+          - type: string
+            enum:
+            - customer_support
+            - multi_turn
+            - tool_use
+            - error_handling
+            - conflicting_information
+            - missing_information
+            - policy_compliance
+            - concurrent_tasks
+          - type: 'null'
+          title: Scenario Type
+        difficulty:
+          anyOf:
+          - type: string
+            enum:
+            - easy
+            - medium
+            - hard
+          - type: 'null'
+          title: Difficulty
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 20
+          - type: 'null'
+          title: Tags
+      type: object
+      title: ScenarioUpdate
+    StarterPackResponse:
+      properties:
+        scenarios_created:
+          type: integer
+          title: Scenarios Created
+        suite_id:
+          type: string
+          format: uuid
+          title: Suite Id
+        dataset_id:
+          type: string
+          format: uuid
+          title: Dataset Id
+      type: object
+      required:
+      - scenarios_created
+      - suite_id
+      - dataset_id
+      title: StarterPackResponse
+    SuiteCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          minLength: 2
+          title: Name
+        description:
+          type: string
+          maxLength: 4000
+          title: Description
+          default: ''
+        items:
+          items:
+            $ref: '#/components/schemas/SuiteItemIn'
+          type: array
+          maxItems: 500
+          title: Items
+      type: object
+      required:
+      - name
+      title: SuiteCreate
+    SuiteItemIn:
+      properties:
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        pinned_version:
+          anyOf:
+          - type: integer
+            minimum: 1.0
+          - type: 'null'
+          title: Pinned Version
+      type: object
+      required:
+      - scenario_id
+      title: SuiteItemIn
+    SuiteItemOut:
+      properties:
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        name:
+          type: string
+          title: Name
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+        pinned_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pinned Version
+        latest_version:
+          type: integer
+          title: Latest Version
+      type: object
+      required:
+      - scenario_id
+      - name
+      - scenario_type
+      - difficulty
+      - pinned_version
+      - latest_version
+      title: SuiteItemOut
+    SuiteList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SuiteOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: SuiteList
+    SuiteOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        org_id:
+          type: string
+          format: uuid
+          title: Org Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        items:
+          items:
+            $ref: '#/components/schemas/SuiteItemOut'
+          type: array
+          title: Items
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - org_id
+      - name
+      - description
+      - items
+      - created_at
+      - updated_at
+      title: SuiteOut
+    SuiteUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 200
+            minLength: 2
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Description
+        items:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/SuiteItemIn'
+            type: array
+            maxItems: 500
+          - type: 'null'
+          title: Items
+      type: object
+      title: SuiteUpdate
+    ToolDefinition:
+      properties:
+        name:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Name
+        description:
+          type: string
+          title: Description
+          default: ''
+        parameters:
+          additionalProperties: true
+          type: object
+          title: Parameters
+        responses:
+          items:
+            $ref: '#/components/schemas/ToolResponse'
+          type: array
+          title: Responses
+        default_output:
+          title: Default Output
+        failure:
+          anyOf:
+          - $ref: '#/components/schemas/ToolFailure'
+          - type: 'null'
+      type: object
+      required:
+      - name
+      title: ToolDefinition
+    ToolFailure:
+      properties:
+        on_calls:
+          items:
+            type: integer
+          type: array
+          title: On Calls
+          description: 1-based call numbers that fail.
+        error:
+          type: string
+          title: Error
+          default: Tool temporarily unavailable
+      type: object
+      title: ToolFailure
+      description: Scripted failure, which is how 'unexpected tool failures' are simulated.
+    ToolResponse:
+      properties:
+        when:
+          additionalProperties: true
+          type: object
+          title: When
+        output:
+          title: Output
+      type: object
+      title: ToolResponse
+      description: Returned when every key in ``when`` matches the call's arguments.
+    Turn:
+      properties:
+        role:
+          type: string
+          const: user
+          title: Role
+          default: user
+        content:
+          type: string
+          maxLength: 20000
+          minLength: 1
+          title: Content
+      type: object
+      required:
+      - content
+      title: Turn
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    VariationRequest:
+      properties:
+        count:
+          type: integer
+          maximum: 100.0
+          minimum: 1.0
+          title: Count
+          default: 5
+        seed:
+          type: integer
+          title: Seed
+          default: 42
+        strategies:
+          items:
+            type: string
+            enum:
+            - typos
+            - lowercase
+            - uppercase
+            - polite
+            - urgent
+            - filler
+            - no_punctuation
+          type: array
+          title: Strategies
+        dataset_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Dataset Id
+      type: object
+      title: VariationRequest
+      description: Either perturb the user turns, or fill the template from a dataset.
+    VariationResponse:
+      properties:
+        created:
+          items:
+            $ref: '#/components/schemas/ScenarioSummary'
+          type: array
+          title: Created
+      type: object
+      required:
+      - created
+      title: VariationResponse
+    VersionCreate:
+      properties:
+        definition:
+          $ref: '#/components/schemas/ScenarioDefinition'
+        expected:
+          $ref: '#/components/schemas/ExpectedOutcome'
+        criteria:
+          $ref: '#/components/schemas/EvaluationCriteria'
+        change_note:
+          type: string
+          maxLength: 2000
+          title: Change Note
+          default: ''
+      type: object
+      required:
+      - definition
+      title: VersionCreate
+    VersionOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        version:
+          type: integer
+          title: Version
+        definition:
+          additionalProperties: true
+          type: object
+          title: Definition
+        expected:
+          additionalProperties: true
+          type: object
+          title: Expected
+        criteria:
+          additionalProperties: true
+          type: object
+          title: Criteria
+        change_note:
+          type: string
+          title: Change Note
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - scenario_id
+      - version
+      - definition
+      - expected
+      - criteria
+      - change_note
+      - created_at
+      title: VersionOut

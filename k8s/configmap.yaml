@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentarena-config
+  namespace: agentarena
+data:
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.agentarena-observability.svc.cluster.local:4317
+  JWKS_URL: http://identity-service:8000/.well-known/jwks.json
+  AGENT_REGISTRY_URL: http://agent-registry:8000
+  SCENARIO_SERVICE_URL: http://scenario-service:8000
+  # The bundled sample agent is the only private address agents may use here.
+  AGENT_ENDPOINT_ALLOWLIST: sample-agent
+  ALLOW_HTTP_ENDPOINTS: "true"
+  WORKER_CONCURRENCY: "8"
+  # Raised for local testing, where every signup comes from one address.
+  REGISTER_RATE_PER_SECOND: "50"
+  REGISTER_RATE_BURST: "200"

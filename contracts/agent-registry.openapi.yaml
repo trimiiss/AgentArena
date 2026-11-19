@@ -1,0 +1,919 @@
+openapi: 3.1.0
+info:
+  title: AgentArena Agent Registry
+  description: Registers AI agents, their immutable versions, endpoints and encrypted credentials.
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      tags:
+      - operations
+      summary: Liveness check
+      description: 'Liveness: the process is running. Dependencies are not checked here,
+
+        otherwise a database outage would restart every pod.'
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /ready:
+    get:
+      tags:
+      - operations
+      summary: Readiness check
+      description: 'Readiness: this replica can do useful work right now.'
+      operationId: ready_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready Ready Get
+  /v1/agents:
+    post:
+      tags:
+      - agents
+      summary: Create Agent
+      operationId: create_agent_v1_agents_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - agents
+      summary: List Agents
+      operationId: list_agents_v1_agents_get
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Q
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/agents/{agent_id}:
+    get:
+      tags:
+      - agents
+      summary: Get Agent
+      operationId: get_agent_v1_agents__agent_id__get
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - agents
+      summary: Update Agent
+      operationId: update_agent_v1_agents__agent_id__patch
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - agents
+      summary: Delete Agent
+      description: Soft delete, because past benchmarks must keep pointing at real versions.
+      operationId: delete_agent_v1_agents__agent_id__delete
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/agents/{agent_id}/versions:
+    get:
+      tags:
+      - versions
+      summary: List Versions
+      operationId: list_versions_v1_agents__agent_id__versions_get
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VersionOut'
+                title: Response List Versions V1 Agents  Agent Id  Versions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - versions
+      summary: Create Version
+      operationId: create_version_v1_agents__agent_id__versions_post
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionConfig'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/agents/{agent_id}/versions/{version}:
+    get:
+      tags:
+      - versions
+      summary: Get Version
+      operationId: get_version_v1_agents__agent_id__versions__version__get
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Version
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/agents/{agent_id}/credential:
+    put:
+      tags:
+      - credentials
+      summary: Put Credential
+      operationId: put_credential_v1_agents__agent_id__credential_put
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CredentialIn'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CredentialOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - credentials
+      summary: Delete Credential
+      operationId: delete_credential_v1_agents__agent_id__credential_delete
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/agents/{agent_id}/validate:
+    post:
+      tags:
+      - agents
+      summary: Validate Agent
+      description: Checks the configuration, then runs a real protocol handshake.
+      operationId: validate_agent_v1_agents__agent_id__validate_post
+      parameters:
+      - name: agent_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AgentCreate:
+      properties:
+        endpoint_url:
+          type: string
+          maxLength: 2048
+          minLength: 8
+          title: Endpoint Url
+        integration_type:
+          type: string
+          const: http_v1
+          title: Integration Type
+          default: http_v1
+        request_timeout_seconds:
+          type: integer
+          maximum: 300.0
+          minimum: 1.0
+          title: Request Timeout Seconds
+          default: 30
+        default_headers:
+          additionalProperties:
+            type: string
+          type: object
+          maxProperties: 20
+          title: Default Headers
+        model_name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Model Name
+        input_cost_per_1k:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+          - type: 'null'
+          title: Input Cost Per 1K
+        output_cost_per_1k:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+          - type: 'null'
+          title: Output Cost Per 1K
+        notes:
+          type: string
+          maxLength: 2000
+          title: Notes
+          default: ''
+        name:
+          type: string
+          maxLength: 120
+          minLength: 2
+          title: Name
+        description:
+          type: string
+          maxLength: 4000
+          title: Description
+          default: ''
+        agent_type:
+          type: string
+          enum:
+          - customer_support
+          - coding
+          - research
+          - sales
+          - operations
+          - generic
+          title: Agent Type
+          default: generic
+      type: object
+      required:
+      - endpoint_url
+      - name
+      title: AgentCreate
+    AgentList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AgentOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: AgentList
+    AgentOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        org_id:
+          type: string
+          format: uuid
+          title: Org Id
+        name:
+          type: string
+          title: Name
+        description:
+          type: string
+          title: Description
+        agent_type:
+          type: string
+          title: Agent Type
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - unreachable
+          - disabled
+          title: Status
+        latest_version:
+          type: integer
+          title: Latest Version
+        endpoint_url:
+          type: string
+          title: Endpoint Url
+        credential:
+          anyOf:
+          - $ref: '#/components/schemas/CredentialOut'
+          - type: 'null'
+        last_validated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Validated At
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - org_id
+      - name
+      - description
+      - agent_type
+      - status
+      - latest_version
+      - endpoint_url
+      - credential
+      - last_validated_at
+      - created_at
+      - updated_at
+      title: AgentOut
+    AgentUpdate:
+      properties:
+        name:
+          anyOf:
+          - type: string
+            maxLength: 120
+            minLength: 2
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+            maxLength: 4000
+          - type: 'null'
+          title: Description
+        agent_type:
+          anyOf:
+          - type: string
+            enum:
+            - customer_support
+            - coding
+            - research
+            - sales
+            - operations
+            - generic
+          - type: 'null'
+          title: Agent Type
+        status:
+          anyOf:
+          - type: string
+            enum:
+            - draft
+            - disabled
+          - type: 'null'
+          title: Status
+      type: object
+      title: AgentUpdate
+    CredentialIn:
+      properties:
+        auth_type:
+          type: string
+          enum:
+          - bearer
+          - api_key
+          title: Auth Type
+        secret:
+          type: string
+          maxLength: 4096
+          minLength: 1
+          title: Secret
+        header_name:
+          type: string
+          pattern: ^[A-Za-z0-9-]{1,64}$
+          title: Header Name
+          default: Authorization
+      type: object
+      required:
+      - auth_type
+      - secret
+      title: CredentialIn
+    CredentialOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        auth_type:
+          type: string
+          enum:
+          - bearer
+          - api_key
+          title: Auth Type
+        header_name:
+          type: string
+          title: Header Name
+        key_id:
+          type: string
+          title: Key Id
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - auth_type
+      - header_name
+      - key_id
+      - updated_at
+      title: CredentialOut
+      description: Describes a credential without ever revealing it.
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationCheck:
+      properties:
+        name:
+          type: string
+          title: Name
+        passed:
+          type: boolean
+          title: Passed
+        detail:
+          type: string
+          title: Detail
+          default: ''
+      type: object
+      required:
+      - name
+      - passed
+      title: ValidationCheck
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    ValidationResult:
+      properties:
+        valid:
+          type: boolean
+          title: Valid
+        status:
+          type: string
+          enum:
+          - draft
+          - active
+          - unreachable
+          - disabled
+          title: Status
+        version:
+          type: integer
+          title: Version
+        latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latency Ms
+        checks:
+          items:
+            $ref: '#/components/schemas/ValidationCheck'
+          type: array
+          title: Checks
+      type: object
+      required:
+      - valid
+      - status
+      - version
+      - checks
+      title: ValidationResult
+    VersionConfig:
+      properties:
+        endpoint_url:
+          type: string
+          maxLength: 2048
+          minLength: 8
+          title: Endpoint Url
+        integration_type:
+          type: string
+          const: http_v1
+          title: Integration Type
+          default: http_v1
+        request_timeout_seconds:
+          type: integer
+          maximum: 300.0
+          minimum: 1.0
+          title: Request Timeout Seconds
+          default: 30
+        default_headers:
+          additionalProperties:
+            type: string
+          type: object
+          maxProperties: 20
+          title: Default Headers
+        model_name:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Model Name
+        input_cost_per_1k:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+          - type: 'null'
+          title: Input Cost Per 1K
+        output_cost_per_1k:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+          - type: 'null'
+          title: Output Cost Per 1K
+        notes:
+          type: string
+          maxLength: 2000
+          title: Notes
+          default: ''
+      type: object
+      required:
+      - endpoint_url
+      title: VersionConfig
+    VersionOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        version:
+          type: integer
+          title: Version
+        endpoint_url:
+          type: string
+          title: Endpoint Url
+        integration_type:
+          type: string
+          title: Integration Type
+        request_timeout_seconds:
+          type: integer
+          title: Request Timeout Seconds
+        default_headers:
+          additionalProperties:
+            type: string
+          type: object
+          title: Default Headers
+        model_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Name
+        input_cost_per_1k:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Input Cost Per 1K
+        output_cost_per_1k:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Output Cost Per 1K
+        notes:
+          type: string
+          title: Notes
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - agent_id
+      - version
+      - endpoint_url
+      - integration_type
+      - request_timeout_seconds
+      - default_headers
+      - model_name
+      - input_cost_per_1k
+      - output_cost_per_1k
+      - notes
+      - created_at
+      title: VersionOut

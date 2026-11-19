@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scenario-service"
+version = "1.0.0"
+description = "Versioned test scenarios, suites, datasets and scenario variations."
+requires-python = ">=3.13"
+dependencies = ["agentarena-common"]
+
+[tool.setuptools.packages.find]
+include = ["scenario_service*"]

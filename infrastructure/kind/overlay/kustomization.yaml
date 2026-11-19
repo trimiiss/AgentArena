@@ -1,0 +1,15 @@
+# Used by scripts/deploy-kind.sh, which writes secrets.env with fresh random values.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../k8s
+
+secretGenerator:
+  - name: agentarena-secrets
+    namespace: agentarena
+    behavior: replace
+    envs:
+      - secrets.env
+    options:
+      disableNameSuffixHash: true

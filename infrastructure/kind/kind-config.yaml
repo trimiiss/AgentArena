@@ -1,0 +1,14 @@
+# One node keeps the whole platform inside the memory Docker Desktop has available.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: agentarena
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.35.8
+    labels:
+      ingress-ready: "true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8088
+        listenAddress: 127.0.0.1
+        protocol: TCP

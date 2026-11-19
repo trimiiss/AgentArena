@@ -1,0 +1,37 @@
+{
+  "properties": {
+    "attempt": {
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "queue_wait_ms": {
+      "minimum": 0,
+      "title": "Queue Wait Ms",
+      "type": "number"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "worker_id": {
+      "title": "Worker Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "execution_id",
+    "attempt",
+    "worker_id",
+    "queue_wait_ms"
+  ],
+  "title": "ExecutionStarted",
+  "type": "object"
+}

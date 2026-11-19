@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evaluation-service"
+version = "1.0.0"
+description = "Scores agent executions, produces benchmarks and compares agent versions."
+requires-python = ">=3.13"
+dependencies = ["agentarena-common", "opentelemetry-api", "jsonschema", "anthropic"]
+
+[tool.setuptools.packages.find]
+include = ["evaluation_service*"]

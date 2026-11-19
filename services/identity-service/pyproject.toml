@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "identity-service"
+version = "1.0.0"
+description = "Users, organizations, memberships and token issuing for AgentArena."
+requires-python = ">=3.13"
+dependencies = ["agentarena-common", "argon2-cffi"]
+
+[tool.setuptools.packages.find]
+include = ["identity_service*"]

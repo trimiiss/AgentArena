@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sample-agent"
+version = "1.0.0"
+description = "A rule-based agent that speaks the AgentArena Agent Protocol."
+requires-python = ">=3.13"
+dependencies = ["fastapi", "uvicorn[standard]"]
+
+[tool.setuptools.packages.find]
+include = ["sample_agent*"]

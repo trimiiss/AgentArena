@@ -1,0 +1,48 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "integration: needs PostgreSQL and RabbitMQ",
+  "e2e: needs the full running stack",
+  "chaos: stops and restarts containers",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = ["**/migrations/versions", "frontend"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "ASYNC", "BLE", "C4", "SIM", "RET", "PT"]
+ignore = [
+  "S101", # Assertions are used for type narrowing and in tests.
+  "S104", # Containers must bind to all interfaces.
+  "S311", # random is only used for jitter and reproducible test data.
+  "B008", # FastAPI dependencies use calls in defaults.
+  "PT011", # Broad pytest.raises is acceptable for validators.
+  "PT001", # Fixtures keep their parentheses, matching pytest's own documentation.
+  "RET504", # Named results read better here.
+  "SIM105", # try/except/pass reads clearer than contextlib.suppress around awaits.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S108", "S603", "S607", "BLE", "SIM117", "ASYNC109", "PT012", "PT018"]
+"scripts/**" = ["S603", "S607", "S310"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+  "agentarena_common",
+  "agent_registry",
+  "evaluation_service",
+  "identity_service",
+  "run_orchestrator",
+  "sample_agent",
+  "scenario_service",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["agentarena_common", "agent_registry", "evaluation_service", "identity_service", "run_orchestrator", "scenario_service"]
+omit = ["*/migrations/*"]

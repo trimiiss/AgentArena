@@ -1,0 +1,279 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: run-orchestrator
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: run-orchestrator
+spec:
+  selector:
+    app.kubernetes.io/name: run-orchestrator
+    app.kubernetes.io/component: api
+  ports:
+    - name: http
+      port: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: run-orchestrator
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: run-orchestrator
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: run-orchestrator
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: run-orchestrator
+        app.kubernetes.io/component: api
+        agentarena.io/database: "true"
+        agentarena.io/verifies-tokens: "true"
+        agentarena.io/reads-config: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: agentarena/run-orchestrator:local
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          env: &env
+            - name: RUNS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RUNS_DB_PASSWORD } }
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://runs_svc:$(RUNS_DB_PASSWORD)@postgres:5432/runs_db
+          securityContext: &container-security
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+      containers:
+        - name: run-orchestrator
+          image: agentarena/run-orchestrator:local
+          imagePullPolicy: IfNotPresent
+          command: ["uvicorn", "run_orchestrator.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "20"]
+          envFrom:
+            - configMapRef:
+                name: agentarena-config
+          env: *env
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests: { cpu: 200m, memory: 160Mi }
+            limits: { cpu: "1", memory: 384Mi }
+          securityContext: *container-security
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# Moves runs through their lifecycle. Exposes only health and metrics.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: run-orchestrator-scheduler
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: run-orchestrator
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: run-orchestrator
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: run-orchestrator
+        app.kubernetes.io/component: scheduler
+        agentarena.io/database: "true"
+        agentarena.io/broker: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: run-orchestrator-scheduler
+          image: agentarena/run-orchestrator:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "run_orchestrator.scheduler"]
+          envFrom:
+            - configMapRef:
+                name: agentarena-config
+          env:
+            - name: SERVICE_NAME
+              value: run-orchestrator-scheduler
+            - name: RUNS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RUNS_DB_PASSWORD } }
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://runs_svc:$(RUNS_DB_PASSWORD)@postgres:5432/runs_db
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RABBITMQ_PASSWORD } }
+            - name: RABBITMQ_URL
+              value: amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/agentarena
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 200m, memory: 128Mi }
+            limits: { cpu: "1", memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# Scales independently of the API. Each pod runs WORKER_CONCURRENCY executions at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: run-orchestrator-worker
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: run-orchestrator
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: run-orchestrator
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: run-orchestrator
+        app.kubernetes.io/component: worker
+        agentarena.io/database: "true"
+        agentarena.io/broker: "true"
+        agentarena.io/reads-config: "true"
+        agentarena.io/calls-agents: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      # Longer than the drain, so running executions can finish before the pod stops.
+      terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: run-orchestrator-worker
+          image: agentarena/run-orchestrator:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "run_orchestrator.worker"]
+          envFrom:
+            - configMapRef:
+                name: agentarena-config
+          env:
+            - name: SERVICE_NAME
+              value: run-orchestrator-worker
+            - name: RUNS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RUNS_DB_PASSWORD } }
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://runs_svc:$(RUNS_DB_PASSWORD)@postgres:5432/runs_db
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RABBITMQ_USER } }
+            - name: RABBITMQ_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: RABBITMQ_PASSWORD } }
+            - name: RABBITMQ_URL
+              value: amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@rabbitmq:5672/agentarena
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: INTERNAL_SERVICE_TOKEN } }
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

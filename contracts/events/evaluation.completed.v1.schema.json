@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "evaluation_id": {
+      "format": "uuid",
+      "title": "Evaluation Id",
+      "type": "string"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "score": {
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Score",
+      "type": "number"
+    }
+  },
+  "required": [
+    "run_id",
+    "execution_id",
+    "evaluation_id",
+    "passed",
+    "score"
+  ],
+  "title": "EvaluationCompleted",
+  "type": "object"
+}

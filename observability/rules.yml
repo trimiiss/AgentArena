@@ -1,0 +1,111 @@
+groups:
+  - name: slo
+    rules:
+      - alert: RunSubmissionLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (
+            rate(http_request_duration_seconds_bucket{service="run-orchestrator", method="POST", route="/v1/runs"}[5m])
+          )) > 0.3
+        for: 2m
+        labels:
+          severity: warning
+          slo: run-submission-latency
+        annotations:
+          summary: Run submission p95 is above the 300 ms objective
+          description: "p95 is {{ $value | humanizeDuration }}. See docs/slo.md."
+
+      - alert: RunSubmissionErrorBudgetBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{service="run-orchestrator", method="POST", route="/v1/runs", status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="run-orchestrator", method="POST", route="/v1/runs"}[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          slo: run-submission-availability
+        annotations:
+          summary: More than 1% of run submissions are failing
+          description: "{{ $value | humanizePercentage }} of submissions returned 5xx."
+
+  - name: services
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "{{ $labels.instance }} has not answered a scrape for 30 seconds."
+
+      - alert: HighErrorRate
+        expr: |
+          sum by (service) (rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum by (service) (rate(http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service }} error rate is above 5%"
+          description: "Current 5xx rate is {{ $value | humanizePercentage }}."
+
+      # Looks back a minute, because a breaker under load opens and closes every 15 s
+      # and is rarely open at two scrapes in a row. With `for: 15s`, this alert stayed
+      # silent through a real outage: see docs/loadtest.md.
+      - alert: CircuitBreakerOpen
+        expr: max_over_time(circuit_breaker_state[1m]) == 2
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service }} stopped calling {{ $labels.target }}"
+          description: The breaker is open, so calls to this dependency are failing fast.
+
+  - name: messaging
+    rules:
+      - alert: DeadLetterQueueNotEmpty
+        expr: rabbitmq_queue_messages{queue=~".+\\.dlq"} > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Messages are waiting in {{ $labels.queue }}"
+          description: "{{ $value }} messages need inspection. See docs/deployment.md."
+
+      - alert: ExecutionQueueBacklog
+        expr: rabbitmq_queue_messages_ready{queue="orchestrator.execution-jobs"} > 200
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: The execution queue is growing faster than workers can drain it
+          description: "{{ $value }} jobs are waiting. Scale the workers."
+
+      - alert: OutboxBacklog
+        expr: outbox_pending_events > 200
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} is not publishing its events"
+          description: "{{ $value }} events are unpublished. Check the broker connection."
+
+  - name: execution
+    rules:
+      - alert: WorkersSaturated
+        expr: sum(worker_busy_slots) / sum(worker_capacity_slots) > 0.9
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: Workers have been over 90% busy for 5 minutes
+
+      - alert: ExecutionsLost
+        expr: increase(execution_leases_recovered_total[5m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Executions were recovered after a worker failed
+          description: "{{ $value }} executions were recovered ({{ $labels.reason }})."

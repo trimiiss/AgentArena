@@ -1,0 +1,56 @@
+{
+  "properties": {
+    "agent_id": {
+      "format": "uuid",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "agent_name": {
+      "default": "",
+      "title": "Agent Name",
+      "type": "string"
+    },
+    "agent_version": {
+      "title": "Agent Version",
+      "type": "integer"
+    },
+    "finished_at": {
+      "format": "date-time",
+      "title": "Finished At",
+      "type": "string"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "run_name": {
+      "default": "",
+      "title": "Run Name",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed",
+        "cancelled"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "total_executions": {
+      "title": "Total Executions",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "agent_id",
+    "agent_version",
+    "status",
+    "total_executions",
+    "finished_at"
+  ],
+  "title": "RunCompleted",
+  "type": "object"
+}

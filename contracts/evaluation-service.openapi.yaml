@@ -1,0 +1,1356 @@
+openapi: 3.1.0
+info:
+  title: AgentArena Evaluation Service
+  description: Evaluation results, benchmarks, version comparisons, analytics and reports.
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      tags:
+      - operations
+      summary: Liveness check
+      description: 'Liveness: the process is running. Dependencies are not checked here,
+
+        otherwise a database outage would restart every pod.'
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /ready:
+    get:
+      tags:
+      - operations
+      summary: Readiness check
+      description: 'Readiness: this replica can do useful work right now.'
+      operationId: ready_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready Ready Get
+  /v1/evaluations:
+    get:
+      tags:
+      - evaluations
+      summary: List Evaluations
+      operationId: list_evaluations_v1_evaluations_get
+      parameters:
+      - name: run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Run Id
+      - name: passed
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Passed
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 200
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/evaluations/executions/{execution_id}:
+    get:
+      tags:
+      - evaluations
+      summary: Get Execution Evaluation
+      operationId: get_execution_evaluation_v1_evaluations_executions__execution_id__get
+      parameters:
+      - name: execution_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Execution Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluationDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/benchmarks:
+    get:
+      tags:
+      - benchmarks
+      summary: List Benchmarks
+      operationId: list_benchmarks_v1_benchmarks_get
+      parameters:
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Id
+      - name: agent_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Agent Version
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 200
+          minimum: 1
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/benchmarks/runs/{run_id}:
+    get:
+      tags:
+      - benchmarks
+      summary: Get Benchmark
+      description: Returns the final benchmark, or a live partial one while the run is in progress.
+      operationId: get_benchmark_v1_benchmarks_runs__run_id__get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/benchmarks/runs/{run_id}/report:
+    get:
+      tags:
+      - benchmarks
+      summary: Download a benchmark report
+      operationId: download_report_v1_benchmarks_runs__run_id__report_get
+      parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Run Id
+      - name: format
+        in: query
+        required: false
+        schema:
+          enum:
+          - json
+          - csv
+          - md
+          - html
+          type: string
+          default: json
+          title: Format
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/comparisons/runs:
+    get:
+      tags:
+      - comparisons
+      summary: Compare Runs
+      operationId: compare_runs_v1_comparisons_runs_get
+      parameters:
+      - name: base_run_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Base Run Id
+      - name: candidate_run_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Candidate Run Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/comparisons/agent-versions:
+    get:
+      tags:
+      - comparisons
+      summary: Compare Agent Versions
+      description: Compares the most recent benchmark of each version.
+      operationId: compare_agent_versions_v1_comparisons_agent_versions_get
+      parameters:
+      - name: agent_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Agent Id
+      - name: base_version
+        in: query
+        required: true
+        schema:
+          type: integer
+          title: Base Version
+      - name: candidate_version
+        in: query
+        required: true
+        schema:
+          type: integer
+          title: Candidate Version
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComparisonOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analytics/overview:
+    get:
+      tags:
+      - analytics
+      summary: Analytics Overview
+      description: Every value is computed from stored evaluations and benchmarks.
+      operationId: analytics_overview_v1_analytics_overview_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsOverview'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analytics/timeseries:
+    get:
+      tags:
+      - analytics
+      summary: Analytics Timeseries
+      operationId: analytics_timeseries_v1_analytics_timeseries_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Id
+      - name: bucket
+        in: query
+        required: false
+        schema:
+          enum:
+          - hour
+          - day
+          type: string
+          default: day
+          title: Bucket
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TimeseriesPoint'
+                title: Response Analytics Timeseries V1 Analytics Timeseries Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analytics/agents:
+    get:
+      tags:
+      - analytics
+      summary: Analytics Agents
+      operationId: analytics_agents_v1_analytics_agents_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AgentPerformance'
+                title: Response Analytics Agents V1 Analytics Agents Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analytics/failures:
+    get:
+      tags:
+      - analytics
+      summary: Analytics Failures
+      operationId: analytics_failures_v1_analytics_failures_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryCount'
+                title: Response Analytics Failures V1 Analytics Failures Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/analytics/dimensions:
+    get:
+      tags:
+      - analytics
+      summary: Analytics Dimensions
+      operationId: analytics_dimensions_v1_analytics_dimensions_get
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 365
+          minimum: 1
+          default: 30
+          title: Days
+      - name: agent_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Agent Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DimensionAverage'
+                title: Response Analytics Dimensions V1 Analytics Dimensions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AgentPerformance:
+      properties:
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        agent_name:
+          type: string
+          title: Agent Name
+        agent_version:
+          type: integer
+          title: Agent Version
+        executions:
+          type: integer
+          title: Executions
+        pass_rate:
+          type: number
+          title: Pass Rate
+        avg_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Latency Ms
+        p95_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: P95 Latency Ms
+        cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Usd
+        last_run_at:
+          type: string
+          format: date-time
+          title: Last Run At
+      type: object
+      required:
+      - agent_id
+      - agent_name
+      - agent_version
+      - executions
+      - pass_rate
+      - avg_latency_ms
+      - p95_latency_ms
+      - cost_usd
+      - last_run_at
+      title: AgentPerformance
+    AnalyticsOverview:
+      properties:
+        days:
+          type: integer
+          title: Days
+        benchmarked_runs:
+          type: integer
+          title: Benchmarked Runs
+        runs_passed:
+          type: integer
+          title: Runs Passed
+        runs_failed:
+          type: integer
+          title: Runs Failed
+        executions:
+          type: integer
+          title: Executions
+        executions_passed:
+          type: integer
+          title: Executions Passed
+        pass_rate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pass Rate
+        avg_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Latency Ms
+        p50_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: P50 Latency Ms
+        p95_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: P95 Latency Ms
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Usd
+        timeouts:
+          type: integer
+          title: Timeouts
+        errors:
+          type: integer
+          title: Errors
+      type: object
+      required:
+      - days
+      - benchmarked_runs
+      - runs_passed
+      - runs_failed
+      - executions
+      - executions_passed
+      - pass_rate
+      - avg_latency_ms
+      - p50_latency_ms
+      - p95_latency_ms
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - timeouts
+      - errors
+      title: AnalyticsOverview
+    BenchmarkList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/BenchmarkListItem'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: BenchmarkList
+    BenchmarkListItem:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        run_name:
+          type: string
+          title: Run Name
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        agent_name:
+          type: string
+          title: Agent Name
+        agent_version:
+          type: integer
+          title: Agent Version
+        run_status:
+          type: string
+          title: Run Status
+        verdict:
+          type: string
+          title: Verdict
+        pass_rate:
+          type: number
+          title: Pass Rate
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - run_id
+      - run_name
+      - agent_id
+      - agent_name
+      - agent_version
+      - run_status
+      - verdict
+      - pass_rate
+      - created_at
+      title: BenchmarkListItem
+    BenchmarkOut:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        run_name:
+          type: string
+          title: Run Name
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        agent_name:
+          type: string
+          title: Agent Name
+        agent_version:
+          type: integer
+          title: Agent Version
+        run_status:
+          type: string
+          title: Run Status
+        verdict:
+          type: string
+          title: Verdict
+        pass_rate:
+          type: number
+          title: Pass Rate
+        final:
+          type: boolean
+          title: Final
+        summary:
+          additionalProperties: true
+          type: object
+          title: Summary
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - run_id
+      - run_name
+      - agent_id
+      - agent_name
+      - agent_version
+      - run_status
+      - verdict
+      - pass_rate
+      - final
+      - summary
+      - created_at
+      title: BenchmarkOut
+    CategoryCount:
+      properties:
+        category:
+          type: string
+          title: Category
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - category
+      - count
+      title: CategoryCount
+    ComparisonOut:
+      properties:
+        base:
+          $ref: '#/components/schemas/ComparisonSide'
+        candidate:
+          $ref: '#/components/schemas/ComparisonSide'
+        comparison:
+          additionalProperties: true
+          type: object
+          title: Comparison
+      type: object
+      required:
+      - base
+      - candidate
+      - comparison
+      title: ComparisonOut
+    ComparisonSide:
+      properties:
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        run_name:
+          type: string
+          title: Run Name
+        agent_name:
+          type: string
+          title: Agent Name
+        agent_version:
+          type: integer
+          title: Agent Version
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - run_id
+      - run_name
+      - agent_name
+      - agent_version
+      - created_at
+      title: ComparisonSide
+    DimensionAverage:
+      properties:
+        dimension:
+          type: string
+          title: Dimension
+        average:
+          type: number
+          title: Average
+        samples:
+          type: integer
+          title: Samples
+      type: object
+      required:
+      - dimension
+      - average
+      - samples
+      title: DimensionAverage
+    EvaluationDetail:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        execution_id:
+          type: string
+          format: uuid
+          title: Execution Id
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        agent_version:
+          type: integer
+          title: Agent Version
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        scenario_version:
+          type: integer
+          title: Scenario Version
+        scenario_name:
+          type: string
+          title: Scenario Name
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+        repetition:
+          type: integer
+          title: Repetition
+        seed:
+          type: integer
+          title: Seed
+        execution_status:
+          type: string
+          title: Execution Status
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        passed:
+          type: boolean
+          title: Passed
+        score:
+          type: number
+          title: Score
+        dimension_scores:
+          additionalProperties:
+            type: number
+          type: object
+          title: Dimension Scores
+        failure_categories:
+          items:
+            type: string
+          type: array
+          title: Failure Categories
+        evaluator_version:
+          type: string
+          title: Evaluator Version
+        latency_ms:
+          type: number
+          title: Latency Ms
+        queue_wait_ms:
+          type: number
+          title: Queue Wait Ms
+        agent_calls:
+          type: integer
+          title: Agent Calls
+        tool_calls:
+          type: integer
+          title: Tool Calls
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Usd
+        attempts:
+          type: integer
+          title: Attempts
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        checks:
+          items:
+            $ref: '#/components/schemas/EvaluatorResultOut'
+          type: array
+          title: Checks
+        judgement:
+          anyOf:
+          - $ref: '#/components/schemas/JudgeOut'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - run_id
+      - execution_id
+      - agent_id
+      - agent_version
+      - scenario_id
+      - scenario_version
+      - scenario_name
+      - scenario_type
+      - difficulty
+      - repetition
+      - seed
+      - execution_status
+      - error_code
+      - passed
+      - score
+      - dimension_scores
+      - failure_categories
+      - evaluator_version
+      - latency_ms
+      - queue_wait_ms
+      - agent_calls
+      - tool_calls
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - attempts
+      - created_at
+      - checks
+      - judgement
+      title: EvaluationDetail
+    EvaluationList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/EvaluationOut'
+          type: array
+          title: Items
+        total:
+          type: integer
+          title: Total
+      type: object
+      required:
+      - items
+      - total
+      title: EvaluationList
+    EvaluationOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        run_id:
+          type: string
+          format: uuid
+          title: Run Id
+        execution_id:
+          type: string
+          format: uuid
+          title: Execution Id
+        agent_id:
+          type: string
+          format: uuid
+          title: Agent Id
+        agent_version:
+          type: integer
+          title: Agent Version
+        scenario_id:
+          type: string
+          format: uuid
+          title: Scenario Id
+        scenario_version:
+          type: integer
+          title: Scenario Version
+        scenario_name:
+          type: string
+          title: Scenario Name
+        scenario_type:
+          type: string
+          title: Scenario Type
+        difficulty:
+          type: string
+          title: Difficulty
+        repetition:
+          type: integer
+          title: Repetition
+        seed:
+          type: integer
+          title: Seed
+        execution_status:
+          type: string
+          title: Execution Status
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        passed:
+          type: boolean
+          title: Passed
+        score:
+          type: number
+          title: Score
+        dimension_scores:
+          additionalProperties:
+            type: number
+          type: object
+          title: Dimension Scores
+        failure_categories:
+          items:
+            type: string
+          type: array
+          title: Failure Categories
+        evaluator_version:
+          type: string
+          title: Evaluator Version
+        latency_ms:
+          type: number
+          title: Latency Ms
+        queue_wait_ms:
+          type: number
+          title: Queue Wait Ms
+        agent_calls:
+          type: integer
+          title: Agent Calls
+        tool_calls:
+          type: integer
+          title: Tool Calls
+        input_tokens:
+          type: integer
+          title: Input Tokens
+        output_tokens:
+          type: integer
+          title: Output Tokens
+        cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Usd
+        attempts:
+          type: integer
+          title: Attempts
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - run_id
+      - execution_id
+      - agent_id
+      - agent_version
+      - scenario_id
+      - scenario_version
+      - scenario_name
+      - scenario_type
+      - difficulty
+      - repetition
+      - seed
+      - execution_status
+      - error_code
+      - passed
+      - score
+      - dimension_scores
+      - failure_categories
+      - evaluator_version
+      - latency_ms
+      - queue_wait_ms
+      - agent_calls
+      - tool_calls
+      - input_tokens
+      - output_tokens
+      - cost_usd
+      - attempts
+      - created_at
+      title: EvaluationOut
+    EvaluatorResultOut:
+      properties:
+        evaluator:
+          type: string
+          title: Evaluator
+        dimension:
+          type: string
+          title: Dimension
+        score:
+          type: number
+          title: Score
+        passed:
+          type: boolean
+          title: Passed
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+      type: object
+      required:
+      - evaluator
+      - dimension
+      - score
+      - passed
+      - details
+      title: EvaluatorResultOut
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    JudgeOut:
+      properties:
+        model:
+          type: string
+          title: Model
+        status:
+          type: string
+          title: Status
+        relevance:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Relevance
+        reasoning_quality:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reasoning Quality
+        context_consistency:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Context Consistency
+        conversation_quality:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Conversation Quality
+        error_analysis:
+          type: string
+          title: Error Analysis
+      type: object
+      required:
+      - model
+      - status
+      - relevance
+      - reasoning_quality
+      - context_consistency
+      - conversation_quality
+      - error_analysis
+      title: JudgeOut
+      description: Advisory. Never part of the score.
+    TimeseriesPoint:
+      properties:
+        bucket:
+          type: string
+          format: date-time
+          title: Bucket
+        executions:
+          type: integer
+          title: Executions
+        pass_rate:
+          type: number
+          title: Pass Rate
+        avg_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Avg Latency Ms
+        p95_latency_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: P95 Latency Ms
+        cost_usd:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cost Usd
+      type: object
+      required:
+      - bucket
+      - executions
+      - pass_rate
+      - avg_latency_ms
+      - p95_latency_ms
+      - cost_usd
+      title: TimeseriesPoint
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

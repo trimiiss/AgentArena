@@ -1,0 +1,63 @@
+# Applies the whole platform: kubectl apply -k k8s
+# Secrets here are the safe placeholders from secrets.example.env. For anything
+# beyond a quick check use an overlay with real values: see infrastructure/kind/overlay.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - rabbitmq.yaml
+  - identity-service.yaml
+  - agent-registry.yaml
+  - scenario-service.yaml
+  - run-orchestrator.yaml
+  - evaluation-service.yaml
+  - sample-agent.yaml
+  - frontend.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+  - networkpolicy.yaml
+  - observability/otel-collector.yaml
+  - observability/jaeger.yaml
+  - observability/prometheus.yaml
+  - observability/grafana.yaml
+
+secretGenerator:
+  - name: agentarena-secrets
+    namespace: agentarena
+    envs:
+      - secrets.example.env
+    options:
+      disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: postgres-init
+    namespace: agentarena
+    files:
+      - init-databases.sh=postgres-init-databases.sh
+    options:
+      disableNameSuffixHash: true
+  - name: rabbitmq-config
+    namespace: agentarena
+    files:
+      - 90-agentarena.conf=rabbitmq.conf
+    options:
+      disableNameSuffixHash: true
+  - name: prometheus-rules
+    namespace: agentarena-observability
+    files:
+      - rules.yml=observability/rules.yml
+    options:
+      disableNameSuffixHash: true
+  - name: grafana-dashboards
+    namespace: agentarena-observability
+    files:
+      - system-health.json=observability/dashboards/system-health.json
+      - microservices.json=observability/dashboards/microservices.json
+      - rabbitmq.json=observability/dashboards/rabbitmq.json
+      - execution.json=observability/dashboards/execution.json
+    options:
+      disableNameSuffixHash: true

@@ -1,0 +1,33 @@
+{
+  "description": "A command to a worker. The database row remains the source of truth.",
+  "properties": {
+    "attempt": {
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "dispatched_at": {
+      "format": "date-time",
+      "title": "Dispatched At",
+      "type": "string"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "execution_id",
+    "attempt",
+    "dispatched_at"
+  ],
+  "title": "ExecutionRequested",
+  "type": "object"
+}

@@ -1,0 +1,50 @@
+{
+  "properties": {
+    "agent_calls": {
+      "minimum": 0,
+      "title": "Agent Calls",
+      "type": "integer"
+    },
+    "attempt": {
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "execution_id": {
+      "format": "uuid",
+      "title": "Execution Id",
+      "type": "string"
+    },
+    "latency_ms": {
+      "minimum": 0,
+      "title": "Latency Ms",
+      "type": "number"
+    },
+    "run_id": {
+      "format": "uuid",
+      "title": "Run Id",
+      "type": "string"
+    },
+    "status": {
+      "const": "completed",
+      "default": "completed",
+      "title": "Status",
+      "type": "string"
+    },
+    "tool_calls": {
+      "minimum": 0,
+      "title": "Tool Calls",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "run_id",
+    "execution_id",
+    "attempt",
+    "latency_ms",
+    "agent_calls",
+    "tool_calls"
+  ],
+  "title": "ExecutionCompleted",
+  "type": "object"
+}

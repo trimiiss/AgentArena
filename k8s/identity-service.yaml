@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-service
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: identity-service
+spec:
+  selector:
+    app.kubernetes.io/name: identity-service
+  ports:
+    - name: http
+      port: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+  namespace: agentarena
+  labels:
+    app.kubernetes.io/name: identity-service
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: identity-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: identity-service
+        agentarena.io/database: "true"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: migrate
+          image: agentarena/identity-service:local
+          imagePullPolicy: IfNotPresent
+          command: ["alembic", "upgrade", "head"]
+          env: &env
+            - name: IDENTITY_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: IDENTITY_DB_PASSWORD } }
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://identity_svc:$(IDENTITY_DB_PASSWORD)@postgres:5432/identity_db
+            - name: IDENTITY_KEY_ENCRYPTION_KEY
+              valueFrom: { secretKeyRef: { name: agentarena-secrets, key: IDENTITY_KEY_ENCRYPTION_KEY } }
+          securityContext: &container-security
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources: &migrate-resources
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+      containers:
+        - name: identity-service
+          image: agentarena/identity-service:local
+          imagePullPolicy: IfNotPresent
+          # Trusts X-Forwarded-For, so login limits see the real client and not the
+          # ingress. Safe here because NetworkPolicy only lets the ingress and internal
+          # services reach this pod.
+          command: ["uvicorn", "identity_service.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "20", "--proxy-headers", "--forwarded-allow-ips", "*"]
+          envFrom:
+            - configMapRef:
+                name: agentarena-config
+          env: *env
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Keep serving until the endpoint removal reaches every proxy.
+                command: ["sleep", "5"]
+          # Password hashing is CPU and memory heavy by design.
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext: *container-security
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

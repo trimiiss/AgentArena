@@ -1,0 +1,48 @@
+# Routes by path to each service. /internal is never routed, so internal APIs
+# cannot be reached from outside the cluster. A coarse per-address limit sits in
+# front of each service's own per-organization limit.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentarena
+  namespace: agentarena
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "200"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    nginx.ingress.kubernetes.io/proxy-body-size: 2m
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "3"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - { path: /v1/auth, pathType: Prefix, backend: { service: { name: identity-service, port: { number: 8000 } } } }
+          - { path: /v1/organizations, pathType: Prefix, backend: { service: { name: identity-service, port: { number: 8000 } } } }
+          - { path: /v1/agents, pathType: Prefix, backend: { service: { name: agent-registry, port: { number: 8000 } } } }
+          - { path: /v1/scenarios, pathType: Prefix, backend: { service: { name: scenario-service, port: { number: 8000 } } } }
+          - { path: /v1/suites, pathType: Prefix, backend: { service: { name: scenario-service, port: { number: 8000 } } } }
+          - { path: /v1/datasets, pathType: Prefix, backend: { service: { name: scenario-service, port: { number: 8000 } } } }
+          - { path: /v1/executions, pathType: Prefix, backend: { service: { name: run-orchestrator, port: { number: 8000 } } } }
+          - { path: /v1/evaluations, pathType: Prefix, backend: { service: { name: evaluation-service, port: { number: 8000 } } } }
+          - { path: /v1/benchmarks, pathType: Prefix, backend: { service: { name: evaluation-service, port: { number: 8000 } } } }
+          - { path: /v1/comparisons, pathType: Prefix, backend: { service: { name: evaluation-service, port: { number: 8000 } } } }
+          - { path: /v1/analytics, pathType: Prefix, backend: { service: { name: evaluation-service, port: { number: 8000 } } } }
+          - { path: /, pathType: Prefix, backend: { service: { name: frontend, port: { number: 8080 } } } }
+---
+# Separate, because live progress needs an unbuffered, long-lived connection.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentarena-runs
+  namespace: agentarena
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "200"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - { path: /v1/runs, pathType: Prefix, backend: { service: { name: run-orchestrator, port: { number: 8000 } } } }

@@ -1,0 +1,237 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "24"
+
+jobs:
+  python-quality:
+    name: Lint and unit tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - name: Install packages
+        run: bash scripts/install-dev.sh
+      - name: Lint
+        run: ruff check shared services examples scripts tests
+      - name: Format
+        run: ruff format --check shared services examples scripts tests
+      - name: Unit tests
+        run: pytest tests/unit --cov --cov-report=term --cov-report=xml
+      - name: Contract tests
+        run: pytest tests/contract
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11-alpine3.24
+        env:
+          POSTGRES_PASSWORD: local-dev-postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4.3.7-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: agentarena
+          RABBITMQ_DEFAULT_PASS: local-dev-rabbitmq
+          RABBITMQ_DEFAULT_VHOST: agentarena
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q check_port_connectivity"
+          --health-interval 5s --health-timeout 10s --health-retries 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - name: Install packages
+        run: bash scripts/install-dev.sh
+      - name: Integration tests
+        run: pytest tests/integration
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+
+  compose-e2e:
+    name: End-to-end tests on Compose
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: [python-quality, integration, frontend]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: constraints.txt
+      - name: Install packages
+        run: bash scripts/install-dev.sh
+      - name: Start the stack
+        run: |
+          cp .env.example .env
+          docker compose up --build --wait --wait-timeout 300
+      - name: Smoke test
+        run: bash scripts/smoke.sh
+      - name: End-to-end tests
+        run: pytest tests/e2e -m "not chaos"
+      - name: Failure injection
+        run: pytest tests/e2e/test_chaos.py -m chaos
+      - name: Service logs
+        if: failure()
+        run: docker compose logs --tail 80
+
+  images:
+    name: Build, scan and publish ${{ matrix.image.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [python-quality, integration, frontend]
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: identity-service, context: ., dockerfile: services/identity-service/Dockerfile }
+          - { name: agent-registry, context: ., dockerfile: services/agent-registry/Dockerfile }
+          - { name: scenario-service, context: ., dockerfile: services/scenario-service/Dockerfile }
+          - { name: run-orchestrator, context: ., dockerfile: services/run-orchestrator/Dockerfile }
+          - { name: evaluation-service, context: ., dockerfile: services/evaluation-service/Dockerfile }
+          - { name: sample-agent, context: ., dockerfile: examples/sample-agent/Dockerfile }
+          - { name: frontend, context: frontend, dockerfile: frontend/Dockerfile }
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/agentarena-${{ matrix.image.name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          load: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+      # Trivy and Syft run from images pinned by digest, not marketplace actions. CVE-2026-33634:
+      # the Trivy action's tags and Docker Hub images were hijacked in March 2026, and a tag
+      # runs whatever it points to today, with this job's permissions.
+      - name: Scan for vulnerabilities
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$IMAGE:${{ github.sha }}"
+      - name: Generate SBOM
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:v1.57.0@sha256:3c70e6d5979364cefdc22b51617a78fd264574d3bd6b4f84a351204147025e2a \
+            "docker:$IMAGE:${{ github.sha }}" -q -o cyclonedx-json > sbom-${{ matrix.image.name }}.cdx.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-${{ matrix.image.name }}
+          path: sbom-${{ matrix.image.name }}.cdx.json
+      - name: Publish
+        if: github.event_name != 'pull_request'
+        run: docker push "$IMAGE:${{ github.sha }}"
+
+  secrets-scan:
+    name: Repository scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Scan for secrets and insecure configuration
+        run: |
+          docker run --rm -v "$PWD:/repo:ro" aquasec/trivy:0.76.2@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb fs \
+            --scanners secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo
+
+  deploy-kind:
+    name: Deploy to kind and smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: [images, compose-e2e]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Create the cluster
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1
+        with:
+          cluster_name: agentarena
+          config: infrastructure/kind/kind-config.yaml
+          wait: 120s
+      - name: Log in to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Load the images built by this commit
+        run: |
+          for name in identity-service agent-registry scenario-service run-orchestrator evaluation-service sample-agent frontend; do
+            image="ghcr.io/${{ github.repository_owner }}/agentarena-$name:${{ github.sha }}"
+            docker pull "$image"
+            docker tag "$image" "agentarena/$name:local"
+            kind load docker-image "agentarena/$name:local" --name agentarena
+          done
+      - name: Deploy
+        run: SKIP_BUILD=1 bash scripts/deploy-kind.sh
+      - name: Smoke test
+        run: BASE_URL=http://127.0.0.1:8088 TIMEOUT_SECONDS=180 bash scripts/smoke.sh
+      - name: Cluster state
+        if: failure()
+        run: |
+          kubectl -n agentarena get pods -o wide
+          kubectl -n agentarena get events --sort-by=.lastTimestamp | tail -30

@@ -1,0 +1,757 @@
+openapi: 3.1.0
+info:
+  title: AgentArena Identity Service
+  description: Accounts, organizations, memberships and access tokens.
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      tags:
+      - operations
+      summary: Liveness check
+      description: 'Liveness: the process is running. Dependencies are not checked here,
+
+        otherwise a database outage would restart every pod.'
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+  /ready:
+    get:
+      tags:
+      - operations
+      summary: Readiness check
+      description: 'Readiness: this replica can do useful work right now.'
+      operationId: ready_ready_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Ready Ready Get
+  /.well-known/jwks.json:
+    get:
+      tags:
+      - keys
+      summary: Public keys for verifying access tokens
+      operationId: jwks__well_known_jwks_json_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Jwks  Well Known Jwks Json Get
+  /v1/auth/register:
+    post:
+      tags:
+      - auth
+      summary: Register
+      operationId: register_v1_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/auth/login:
+    post:
+      tags:
+      - auth
+      summary: Login
+      operationId: login_v1_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/auth/refresh:
+    post:
+      tags:
+      - auth
+      summary: Refresh
+      description: Rotates the refresh token. Replaying a used token revokes the whole family.
+      operationId: refresh_v1_auth_refresh_post
+      parameters:
+      - name: aa_refresh
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Aa Refresh
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/auth/logout:
+    post:
+      tags:
+      - auth
+      summary: Logout
+      operationId: logout_v1_auth_logout_post
+      parameters:
+      - name: aa_refresh
+        in: cookie
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Aa Refresh
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/auth/switch-organization:
+    post:
+      tags:
+      - auth
+      summary: Switch Organization
+      operationId: switch_organization_v1_auth_switch_organization_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwitchOrganizationRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/auth/me:
+    get:
+      tags:
+      - auth
+      summary: Me
+      operationId: me_v1_auth_me_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/organizations:
+    post:
+      tags:
+      - organizations
+      summary: Create Organization
+      operationId: create_organization_v1_organizations_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/organizations/current:
+    get:
+      tags:
+      - organizations
+      summary: Get Current Organization
+      operationId: get_current_organization_v1_organizations_current_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - organizations
+      summary: Update Current Organization
+      operationId: update_current_organization_v1_organizations_current_patch
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/organizations/current/members:
+    get:
+      tags:
+      - organizations
+      summary: List Members
+      operationId: list_members_v1_organizations_current_members_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberOut'
+                title: Response List Members V1 Organizations Current Members Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - organizations
+      summary: Add Member
+      operationId: add_member_v1_organizations_current_members_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAdd'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /v1/organizations/current/members/{user_id}:
+    patch:
+      tags:
+      - organizations
+      summary: Update Member
+      operationId: update_member_v1_organizations_current_members__user_id__patch
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - organizations
+      summary: Remove Member
+      operationId: remove_member_v1_organizations_current_members__user_id__delete
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: User Id
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 1
+          title: Password
+        organization_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Organization Id
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    MeResponse:
+      properties:
+        user:
+          $ref: '#/components/schemas/UserOut'
+        organization:
+          $ref: '#/components/schemas/OrganizationOut'
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+        organizations:
+          items:
+            $ref: '#/components/schemas/OrganizationMembershipOut'
+          type: array
+          title: Organizations
+      type: object
+      required:
+      - user
+      - organization
+      - role
+      - organizations
+      title: MeResponse
+    MemberAdd:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+          default: member
+      type: object
+      required:
+      - email
+      title: MemberAdd
+    MemberOut:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        email:
+          type: string
+          title: Email
+        display_name:
+          type: string
+          title: Display Name
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+        joined_at:
+          type: string
+          format: date-time
+          title: Joined At
+      type: object
+      required:
+      - user_id
+      - email
+      - display_name
+      - role
+      - joined_at
+      title: MemberOut
+    MemberUpdate:
+      properties:
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+      type: object
+      required:
+      - role
+      title: MemberUpdate
+    OrganizationCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 2
+          title: Name
+      type: object
+      required:
+      - name
+      title: OrganizationCreate
+    OrganizationMembershipOut:
+      properties:
+        organization:
+          $ref: '#/components/schemas/OrganizationOut'
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+      type: object
+      required:
+      - organization
+      - role
+      title: OrganizationMembershipOut
+    OrganizationOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          type: string
+          title: Name
+        slug:
+          type: string
+          title: Slug
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - name
+      - slug
+      - created_at
+      title: OrganizationOut
+    OrganizationUpdate:
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          minLength: 2
+          title: Name
+      type: object
+      required:
+      - name
+      title: OrganizationUpdate
+    RegisterRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+        password:
+          type: string
+          maxLength: 128
+          minLength: 10
+          title: Password
+        display_name:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Display Name
+        organization_name:
+          type: string
+          maxLength: 100
+          minLength: 2
+          title: Organization Name
+      type: object
+      required:
+      - email
+      - password
+      - display_name
+      - organization_name
+      title: RegisterRequest
+    SessionResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+        token_type:
+          type: string
+          const: bearer
+          title: Token Type
+          default: bearer
+        expires_in:
+          type: integer
+          title: Expires In
+        user:
+          $ref: '#/components/schemas/UserOut'
+        organization:
+          $ref: '#/components/schemas/OrganizationOut'
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - member
+          - viewer
+          title: Role
+      type: object
+      required:
+      - access_token
+      - expires_in
+      - user
+      - organization
+      - role
+      title: SessionResponse
+    SwitchOrganizationRequest:
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+          title: Organization Id
+      type: object
+      required:
+      - organization_id
+      title: SwitchOrganizationRequest
+    UserOut:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          title: Email
+        display_name:
+          type: string
+          title: Display Name
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - id
+      - email
+      - display_name
+      - created_at
+      title: UserOut
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
